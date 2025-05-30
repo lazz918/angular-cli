@@ -1,0 +1,258 @@
+{
+  "name": "crypto-unclaimed-scanner-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "next": "13.4.4",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.2",
+    "typescript": "^5.0.4"
+  }
+}
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}"
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
+import type { AppProps } from 'next/app'
+import '../styles/globals.css'
+
+export default function App({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-10 bg-gray-900 text-white">
+      <h1 className="text-4xl font-bold mb-6">Crypto Unclaimed Assets Scanner</h1>
+      <Link href="/scan">
+        <a className="bg-blue-600 px-6 py-3 rounded hover:bg-blue-700 transition">
+          Scan My Wallet
+        </a>
+      </Link>
+    </main>
+  )
+}
+import React from 'react';
+
+const chains = ['Ethereum', 'BSC', 'Polygon', 'Solana'] as const;
+type Chain = typeof chains[number];
+
+interface Props {
+  selectedChains: Chain[];
+  setSelectedChains: (chains: Chain[]) => void;
+}
+
+export default function ChainSelector({ selectedChains, setSelectedChains }: Props) {
+  const toggleChain = (chain: Chain) => {
+    if (selectedChains.includes(chain)) {
+      setSelectedChains(selectedChains.filter(c => c !== chain));
+    } else {
+      setSelectedChains([...selectedChains, chain]);
+    }
+  };
+
+  return (
+    <div className="flex gap-4 mb-4">
+      {chains.map(chain => (
+        <label key={chain} className="inline-flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={selectedChains.includes(chain)}
+            onChange={() => toggleChain(chain)}
+            className="w-5 h-5"
+          />
+          <span>{chain}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+import React from 'react';
+
+interface TokenBalance {
+  token: string;
+  balance: string | number;
+}
+
+interface Results {
+  [chain: string]: TokenBalance[];
+}
+
+interface Props {
+  results: Results | null;
+}
+
+export default function ResultsTable({ results }: Props) {
+  if (!results) return null;
+
+  return (
+    <table className="table-auto w-full border-collapse border border-gray-600 mt-6">
+      <thead>
+        <tr className="bg-gray-800">
+          <th className="border border-gray-600 px-4 py-2 text-left">Chain</th>
+          <th className="border border-gray-600 px-4 py-2 text-left">Token</th>
+          <th className="border border-gray-600 px-4 py-2 text-left">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Object.entries(results).map(([chain, tokens]) =>
+          tokens.map(({ token, balance }) => (
+            <tr key={`${chain}-${token}`} className="odd:bg-gray-700 even:bg-gray-600">
+              <td className="border border-gray-600 px-4 py-2">{chain}</td>
+              <td className="border border-gray-600 px-4 py-2">{token}</td>
+              <td className="border border-gray-600 px-4 py-2">{balance}</td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  );
+}
+'use client';
+
+import React, { useState } from 'react';
+import axios from 'axios';
+import ChainSelector from '../components/ChainSelector';
+import ResultsTable from '../components/ResultsTable';
+
+type Chain = 'Ethereum' | 'BSC' | 'Polygon' | 'Solana';
+
+interface TokenBalance {
+  token: string;
+  balance: string | number;
+}
+
+interface ScanResults {
+  [chain: string]: TokenBalance[];
+}
+
+export default function Scan() {
+  const [address, setAddress] = useState('');
+  const [selectedChains, setSelectedChains] = useState<Chain[]>(['Ethereum', 'BSC', 'Polygon', 'Solana']);
+  const [results, setResults] = useState<ScanResults | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleScan = async () => {
+    if (!address) {
+      setError('Please enter a wallet address');
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+    setResults(null);
+
+    try {
+      // We send the chains to backend if needed (optional).
+      const response = await axios.post('http://localhost:5000/api/scan', { address });
+
+      // Filter results by selected chains
+      const filteredResults: ScanResults = {};
+      selectedChains.forEach(chain => {
+        if (response.data[chain.toLowerCase()]) {
+          filteredResults[chain] = response.data[chain.toLowerCase()];
+        }
+      });
+
+      setResults(filteredResults);
+    } catch (err) {
+      setError('Error scanning the wallet. Make sure the backend is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen p-10 bg-gray-900 text-white">
+      <h1 className="text-3xl mb-6 font-bold">Scan Wallet for Unclaimed Assets</h1>
+
+      <input
+        type="text"
+        placeholder="Enter wallet address"
+        className="p-3 rounded w-full max-w-md mb-4 text-black"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+      />
+
+      <ChainSelector selectedChains={selectedChains} setSelectedChains={setSelectedChains} />
+
+      <button
+        onClick={handleScan}
+        className="bg-blue-600 px-6 py-3 rounded hover:bg-blue-700 transition disabled:opacity-50"
+        disabled={loading}
+      >
+        {loading ? 'Scanning...' : 'Scan'}
+      </button>
+
+      {error && <p className="mt-4 text-red-500">{error}</p>}
+
+      <ResultsTable results={results} />
+    </main>
+  );
+}
